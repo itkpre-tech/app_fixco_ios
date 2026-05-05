@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "172882778974",
+    "project_id": "fixco-dc493-8d57c",
+    "storage_bucket": "fixco-dc493-8d57c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:172882778974:android:a01474e3b2e9b248abcdcf",
+        "android_client_info": {
+          "package_name": "com.example.fixco"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbsBk-n7vBwQhS9eLEySgC2VUOYMUvwJc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:172882778974:android:09153a1d5fcb7689abcdcf",
+        "android_client_info": {
+          "package_name": "com.fixco.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbsBk-n7vBwQhS9eLEySgC2VUOYMUvwJc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
