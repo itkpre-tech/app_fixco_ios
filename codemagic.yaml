@@ -9,6 +9,10 @@ workflows:
       flutter: stable
       xcode: latest
 
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.fixer.kpre
+
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
@@ -19,8 +23,8 @@ workflows:
           pod install
           cd ..
 
-      - name: Flutter build ipa
-        script: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+      - name: Flutter build IPA
+        script: flutter build ipa --release
 
     artifacts:
       - build/ios/ipa/*.ipa
