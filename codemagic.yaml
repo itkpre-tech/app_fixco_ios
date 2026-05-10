@@ -25,8 +25,32 @@ workflows:
           keychain add-certificates
           xcode-project use-profiles
 
+      - name: Create export options
+        script: |
+          cat > /Users/builder/export_options.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>QR7HGT644D</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.fixer.kpre</key>
+              <string>Fixco_AppStore_Profile</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+
       - name: Flutter build IPA
-        script: flutter build ipa --release
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
