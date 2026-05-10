@@ -6,9 +6,6 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.fixer.kpre
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
