@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:fixco/features/home/pages/home.dart';
 import 'package:fixco/features/contact/pages/contact.dart';
@@ -28,14 +29,23 @@ class _AppShellState extends State<AppShell> {
   }
 
   Future<void> initFCM() async {
-    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    try {
+      FirebaseMessaging messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission();
 
-    await messaging.requestPermission();
+      // iOS simulator doesn't support APNS so we skip token fetch
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final apnsToken = await messaging.getAPNSToken();
+        if (apnsToken == null) return; // simulator — skip
+      }
 
-    String? token = await messaging.getToken();
-
-    if (token != null && UserSession.isLoggedIn()) {
-      await Api.saveFCMToken(UserSession.userId!, token);
+      String? token = await messaging.getToken();
+      if (token != null && UserSession.isLoggedIn()) {
+        await Api.saveFCMToken(UserSession.userId!, token);
+      }
+    } catch (e) {
+      // silently ignore FCM errors on simulator
+      debugPrint('FCM init skipped: $e');
     }
   }
 
@@ -58,7 +68,13 @@ class _AppShellState extends State<AppShell> {
       extendBody: true,
       body: IndexedStack(
         index: currentIndex,
-        children: const [HomePage(), About(), Booking(), Contact(), Profile()],
+        children: const [
+          HomePage(),
+          About(),
+          Booking(),
+          Contact(),
+          Profile(),
+        ],
       ),
       bottomNavigationBar: BottomBar(
         currentIndex: currentIndex,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:fixco/services/api.dart';
 import 'package:fixco/services/user_session.dart';
@@ -23,10 +25,50 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   Future<String?> getFCMToken() async {
-    FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-    await messaging.requestPermission();
-    return await messaging.getToken();
+    try {
+      FirebaseMessaging messaging = FirebaseMessaging.instance;
+      
+      // Request permission first
+      NotificationSettings settings = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      
+      if (settings.authorizationStatus != AuthorizationStatus.authorized) {
+        print('Notification permission denied');
+        return null;
+      }
+      
+      // On iOS, wait for APNS token to be registered
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        print('Waiting for APNS token on iOS...');
+        await Future.delayed(const Duration(seconds: 2));
+      }
+      
+      // Get the token with retry logic
+      String? token;
+      int retries = 0;
+      while (token == null && retries < 3) {
+        token = await messaging.getToken();
+        if (token == null) {
+          print('Retry ${retries + 1} - waiting for token...');
+          await Future.delayed(const Duration(milliseconds: 500));
+          retries++;
+        }
+      }
+      
+      if (token != null) {
+        print('FCM Token obtained: ${token.substring(0, token.length > 20 ? 20 : token.length)}...');
+      } else {
+        print('Failed to get FCM token after retries');
+      }
+      
+      return token;
+    } catch (e) {
+      print('Error getting FCM token: $e');
+      return null;
+    }
   }
 
   Future<void> _login() async {
@@ -54,13 +96,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      final String? token = await getFCMToken();
-
-      if (!mounted) return;
-
-      if (token != null) {
-        await Api.saveFCMToken(user['id'], token);
-      }
+      // Save token in background (don't wait for it)
+      _saveFCMToken(user['id']);
 
       if (!mounted) return;
 
@@ -76,6 +113,14 @@ class _LoginScreenState extends State<LoginScreen> {
               LoginErrorPage(message: response['message'] ?? "Login failed"),
         ),
       );
+    }
+  }
+  
+  Future<void> _saveFCMToken(int userId) async {
+    final String? token = await getFCMToken();
+    if (token != null && mounted) {
+      await Api.saveFCMToken(userId, token);
+      print('FCM token saved for user $userId');
     }
   }
 
@@ -132,6 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailController,
                 style: const TextStyle(color: Colors.white),
                 decoration: _inputDecoration("Email", Icons.email),
+                keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value!.isEmpty) return "Enter email";
                   if (!value.contains("@")) return "Enter valid email";

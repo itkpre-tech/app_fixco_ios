@@ -1,15 +1,21 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+
+import 'firebase_options.dart';
+
 import 'package:fixco/features/onboarding/controller/onboarding_controller.dart';
 import 'package:fixco/features/onboarding/pages/get_started.dart';
 import 'package:fixco/navigation/app_shell.dart';
 import 'package:fixco/services/user_session.dart';
 
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   if (kDebugMode) {
     debugPrint("Background Notification:");
@@ -21,7 +27,9 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
 
@@ -56,7 +64,9 @@ class MyApp extends StatelessWidget {
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
             );
           }
 
@@ -67,7 +77,9 @@ class MyApp extends StatelessWidget {
           return const AppShell();
         },
       ),
-      routes: {'/app': (context) => const AppShell()},
+      routes: {
+        '/app': (context) => const AppShell(),
+      },
     );
   }
 }
