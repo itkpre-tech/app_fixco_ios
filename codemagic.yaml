@@ -30,7 +30,7 @@ workflows:
           flutter build ipa --release --export-method app-store
 
     artifacts:
-      - build/ios/ipa/*.ipa
+      - /Users/builder/clone/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
 
     publishing:
