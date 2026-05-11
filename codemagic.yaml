@@ -19,9 +19,14 @@ workflows:
           pod install
           cd ..
 
-      - name: Flutter build IPA
+      - name: Inject provisioning profile
         script: |
-          flutter build ipa --release
+          xcode-project use-profiles
+          echo "--- pbxproj check ---"
+          grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj
+
+      - name: Flutter build IPA
+        script: flutter build ipa --release
 
     artifacts:
       - build/ios/ipa/*.ipa
