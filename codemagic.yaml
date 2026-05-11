@@ -23,10 +23,35 @@ workflows:
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
-          xcode-project use-profiles
+
+          # Extract UUID from downloaded profile
+          PROFILE_PATH=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
+          echo "Profile path: $PROFILE_PATH"
+          
+          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | \
+            grep -A1 '<key>UUID</key>' | \
+            grep '<string>' | \
+            sed 's/.*<string>\(.*\)<\/string>.*/\1/' | \
+            tr -d '[:space:]')
+          echo "Profile UUID: $PROFILE_UUID"
+
+          # Inject UUID into pbxproj
+          sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = \"Fixco_AppStore_Profile\"/PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\"/g" \
+            ios/Runner.xcodeproj/project.pbxproj
+
+          # Verify
+          grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj
 
       - name: Create export options
         script: |
+          PROFILE_PATH=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
+          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | \
+            grep -A1 '<key>UUID</key>' | \
+            grep '<string>' | \
+            sed 's/.*<string>\(.*\)<\/string>.*/\1/' | \
+            tr -d '[:space:]')
+          echo "Using UUID: $PROFILE_UUID"
+
           cat > /Users/builder/export_options.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -41,11 +66,13 @@ workflows:
             <key>provisioningProfiles</key>
             <dict>
               <key>com.fixer.kpre</key>
-              <string>Fixco_AppStore_Profile</string>
+              <string>$PROFILE_UUID</string>
             </dict>
           </dict>
           </plist>
           EOF
+          echo "Export plist:"
+          cat /Users/builder/export_options.plist
 
       - name: Flutter build IPA
         script: |
