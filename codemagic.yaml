@@ -6,6 +6,10 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
+      vars:
+        CM_CERTIFICATE: $CM_CERTIFICATE
+        CM_CERTIFICATE_PASSWORD: $CM_CERTIFICATE_PASSWORD
+        CM_PROVISIONING_PROFILE: $CM_PROVISIONING_PROFILE
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
@@ -19,16 +23,19 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files com.fixer.kpre \
-            --type IOS_APP_STORE \
-            --create
-          keychain add-certificates
 
-          # Extract UUID from downloaded profile
-          PROFILE_PATH=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
-          echo "Profile path: $PROFILE_PATH"
-          
-          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | \
+          # Decode and install certificate
+          echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
+          keychain add-certificates --certificate /tmp/certificate.p12 \
+            --certificate-password $CM_CERTIFICATE_PASSWORD
+
+          # Decode and install provisioning profile
+          echo $CM_PROVISIONING_PROFILE | base64 --decode > /tmp/profile.mobileprovision
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+
+          # Extract UUID from profile
+          PROFILE_UUID=$(security cms -D -i /tmp/profile.mobileprovision | \
             grep -A1 '<key>UUID</key>' | \
             grep '<string>' | \
             sed 's/.*<string>\(.*\)<\/string>.*/\1/' | \
@@ -36,16 +43,18 @@ workflows:
           echo "Profile UUID: $PROFILE_UUID"
 
           # Inject UUID into pbxproj
-          sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = \"Fixco_AppStore_Profile\"/PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\"/g" \
+          sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = \"\"/PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\"/g" \
+            ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' "s/\"PROVISIONING_PROFILE_SPECIFIER\[sdk=iphoneos\*\]\" = \"\"/\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\" = \"$PROFILE_UUID\"/g" \
             ios/Runner.xcodeproj/project.pbxproj
 
           # Verify
+          echo "--- pbxproj check ---"
           grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj
 
       - name: Create export options
         script: |
-          PROFILE_PATH=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
-          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | \
+          PROFILE_UUID=$(security cms -D -i /tmp/profile.mobileprovision | \
             grep -A1 '<key>UUID</key>' | \
             grep '<string>' | \
             sed 's/.*<string>\(.*\)<\/string>.*/\1/' | \
