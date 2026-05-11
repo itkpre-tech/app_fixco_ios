@@ -6,10 +6,6 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
-      vars:
-        CM_CERTIFICATE: $CM_CERTIFICATE
-        CM_CERTIFICATE_PASSWORD: $CM_CERTIFICATE_PASSWORD
-        CM_PROVISIONING_PROFILE: $CM_PROVISIONING_PROFILE
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
@@ -24,13 +20,17 @@ workflows:
         script: |
           keychain initialize
 
+          # Debug - check if env vars are set
+          echo "Certificate length: ${#CM_CERTIFICATE}"
+          echo "Profile length: ${#CM_PROVISIONING_PROFILE}"
+
           # Decode and install certificate
-          echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
+          echo "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
           keychain add-certificates --certificate /tmp/certificate.p12 \
-            --certificate-password $CM_CERTIFICATE_PASSWORD
+            --certificate-password "$CM_CERTIFICATE_PASSWORD"
 
           # Decode and install provisioning profile
-          echo $CM_PROVISIONING_PROFILE | base64 --decode > /tmp/profile.mobileprovision
+          echo "$CM_PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
 
@@ -48,7 +48,6 @@ workflows:
           sed -i '' "s/\"PROVISIONING_PROFILE_SPECIFIER\[sdk=iphoneos\*\]\" = \"\"/\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\" = \"$PROFILE_UUID\"/g" \
             ios/Runner.xcodeproj/project.pbxproj
 
-          # Verify
           echo "--- pbxproj check ---"
           grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj
 
@@ -59,7 +58,6 @@ workflows:
             grep '<string>' | \
             sed 's/.*<string>\(.*\)<\/string>.*/\1/' | \
             tr -d '[:space:]')
-          echo "Using UUID: $PROFILE_UUID"
 
           cat > /Users/builder/export_options.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -80,7 +78,6 @@ workflows:
           </dict>
           </plist>
           EOF
-          echo "Export plist:"
           cat /Users/builder/export_options.plist
 
       - name: Flutter build IPA
