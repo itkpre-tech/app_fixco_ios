@@ -27,8 +27,7 @@ workflows:
 
       - name: Create export options
         script: |
-          PROFILE_UUID=$(grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj | \
-            head -1 | sed 's/.*= "\(.*\)".*/\1/' | tr -d '[:space:]')
+          PROFILE_UUID="5af7596f-d4fd-426d-b36d-ab1e8f7de5af"
           echo "Using profile UUID: $PROFILE_UUID"
           cat > /tmp/ExportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
