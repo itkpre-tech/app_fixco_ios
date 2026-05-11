@@ -25,12 +25,40 @@ workflows:
           echo "--- pbxproj check ---"
           grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj
 
+      - name: Create export options
+        script: |
+          PROFILE_UUID=$(grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj | \
+            head -1 | sed 's/.*= "\(.*\)".*/\1/' | tr -d '[:space:]')
+          echo "Using profile UUID: $PROFILE_UUID"
+          cat > /tmp/ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>QR7HGT644D</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.fixer.kpre</key>
+              <string>$PROFILE_UUID</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+          echo "Export options:"
+          cat /tmp/ExportOptions.plist
+
       - name: Flutter build IPA
         script: |
-          flutter build ipa --release --export-method app-store
+          flutter build ipa --release \
+            --export-options-plist=/tmp/ExportOptions.plist
 
     artifacts:
-      - /Users/builder/clone/build/ios/ipa/*.ipa
+      - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
 
     publishing:
