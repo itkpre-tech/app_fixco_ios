@@ -6,6 +6,9 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.fixer.kpre
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
@@ -16,74 +19,9 @@ workflows:
           pod install
           cd ..
 
-      - name: Set up code signing
-        script: |
-          keychain initialize
-
-          # Debug - check if env vars are set
-          echo "Certificate length: ${#CM_CERTIFICATE}"
-          echo "Profile length: ${#CM_PROVISIONING_PROFILE}"
-
-          # Decode and install certificate
-          echo "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
-          keychain add-certificates --certificate /tmp/certificate.p12 \
-            --certificate-password "$CM_CERTIFICATE_PASSWORD"
-
-          # Decode and install provisioning profile
-          echo "$CM_PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-
-          # Extract UUID from profile
-          PROFILE_UUID=$(security cms -D -i /tmp/profile.mobileprovision | \
-            grep -A1 '<key>UUID</key>' | \
-            grep '<string>' | \
-            sed 's/.*<string>\(.*\)<\/string>.*/\1/' | \
-            tr -d '[:space:]')
-          echo "Profile UUID: $PROFILE_UUID"
-
-          # Inject UUID into pbxproj
-          sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = \"\"/PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\"/g" \
-            ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' "s/\"PROVISIONING_PROFILE_SPECIFIER\[sdk=iphoneos\*\]\" = \"\"/\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\" = \"$PROFILE_UUID\"/g" \
-            ios/Runner.xcodeproj/project.pbxproj
-
-          echo "--- pbxproj check ---"
-          grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj
-
-      - name: Create export options
-        script: |
-          PROFILE_UUID=$(security cms -D -i /tmp/profile.mobileprovision | \
-            grep -A1 '<key>UUID</key>' | \
-            grep '<string>' | \
-            sed 's/.*<string>\(.*\)<\/string>.*/\1/' | \
-            tr -d '[:space:]')
-
-          cat > /Users/builder/export_options.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>teamID</key>
-            <string>QR7HGT644D</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.fixer.kpre</key>
-              <string>$PROFILE_UUID</string>
-            </dict>
-          </dict>
-          </plist>
-          EOF
-          cat /Users/builder/export_options.plist
-
       - name: Flutter build IPA
         script: |
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist
+          flutter build ipa --release
 
     artifacts:
       - build/ios/ipa/*.ipa
