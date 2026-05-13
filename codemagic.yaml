@@ -21,7 +21,21 @@ workflows:
 
       - name: Inject provisioning profile
         script: |
+          PROFILE_UUID="5af7596f-d4fd-426d-b36d-ab1e8f7de5af"
+
+          # First let xcode-project use-profiles run
           xcode-project use-profiles
+
+          # Then force inject the UUID directly
+          sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = \"\"/PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\"/g" \
+            ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = Fixco_AppStore_Profile;/PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\";/g" \
+            ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' "s/\"PROVISIONING_PROFILE_SPECIFIER\[sdk=iphoneos\*\]\" = \"\"/\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\" = \"$PROFILE_UUID\"/g" \
+            ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' "s/\"PROVISIONING_PROFILE_SPECIFIER\[sdk=iphoneos\*\]\" = Fixco_AppStore_Profile;/\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\" = \"$PROFILE_UUID\";/g" \
+            ios/Runner.xcodeproj/project.pbxproj
+
           echo "--- pbxproj check ---"
           grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj
 
