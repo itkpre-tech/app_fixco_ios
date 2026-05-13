@@ -1,21 +1,207 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:fixco/services/api.dart';
+import '../../home/shared/home_constants.dart'; // provides kPrimary, kAccent, kTextDark, kTextLight
 
-class About extends StatelessWidget {
+// Local light-theme tokens
+const Color _bgLight = Color(0xFFFFFFFF);
+const Color _textMid = Color(0xFF555555);
+const Color _borderColor = Color(0xFF000000);
+
+// ─────────────────────────────────────────────
+// Image cache helper
+// ─────────────────────────────────────────────
+final Map<String, ImageProvider> _imageCache = {};
+
+ImageProvider _resolveImage(String src) {
+  if (_imageCache.containsKey(src)) return _imageCache[src]!;
+  ImageProvider p;
+  if (src.startsWith('http://') || src.startsWith('https://')) {
+    p = NetworkImage(src);
+  } else if (src.startsWith('data:image')) {
+    try {
+      p = MemoryImage(base64Decode(src.split(',').last));
+    } catch (_) {
+      p = const NetworkImage('');
+    }
+  } else {
+    p = NetworkImage('http://admin.medco-contracting.com$src');
+  }
+  _imageCache[src] = p;
+  return p;
+}
+
+class _CachedImage extends StatelessWidget {
+  final String? src;
+  final BoxFit fit;
+  final Widget fallback;
+  const _CachedImage({
+    required this.src,
+    this.fit = BoxFit.cover,
+    required this.fallback,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (src == null || src!.isEmpty) return fallback;
+    return Image(
+      image: _resolveImage(src!),
+      fit: fit,
+      gaplessPlayback: true,
+      errorBuilder: (context, error, stackTrace) => fallback,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Review Model
+// ─────────────────────────────────────────────
+class Review {
+  final String name, job, review, profileImagePath;
+  final double rating;
+
+  Review({
+    required this.name,
+    required this.job,
+    required this.review,
+    required this.profileImagePath,
+    required this.rating,
+  });
+}
+
+final List<Review> _reviews = [
+  Review(
+    name: "Noor Al Kafri",
+    job: "Homeowner",
+    review: "Exceptional service! Professional team, highly recommended!",
+    profileImagePath: "assets/images/noor.jpeg",
+    rating: 5.0,
+  ),
+  Review(
+    name: "Mohamed Al Hamdi",
+    job: "Property Manager",
+    review: "Best maintenance company in Dubai! Very reliable.",
+    profileImagePath: "assets/images/Person4.png",
+    rating: 5.0,
+  ),
+  Review(
+    name: "Sherif",
+    job: "Business Owner",
+    review: "Amazing electrical work! Very detail-oriented team.",
+    profileImagePath: "assets/images/Person1.png",
+    rating: 4.8,
+  ),
+  Review(
+    name: "Maged",
+    job: "Villa Owner",
+    review: "Fast response, fair pricing, quality work every time.",
+    profileImagePath: "assets/images/Person2.png",
+    rating: 5.0,
+  ),
+  Review(
+    name: "Catherine",
+    job: "Homeowner",
+    review: "Very satisfied with their painting service! Excellent!",
+    profileImagePath: "assets/images/Person6.jpg",
+    rating: 4.9,
+  ),
+];
+
+// ─────────────────────────────────────────────
+// About Page
+// ─────────────────────────────────────────────
+class About extends StatefulWidget {
   const About({super.key});
 
+  @override
+  State<About> createState() => _AboutState();
+}
+
+class _AboutState extends State<About> {
+  List<dynamic> _certificates = [];
+  bool _isLoadingCertificates = true;
+
+  late final PageController _reviewCtrl = PageController(
+    viewportFraction: 0.88,
+    initialPage: 1000,
+  );
+
+  int _reviewPage = 0;
+  Timer? _reviewTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCertificates();
+    _startReviewTimer();
+
+    _reviewCtrl.addListener(() {
+      if (_reviewCtrl.page != null) {
+        final newPage = _reviewCtrl.page!.round();
+        if (newPage != _reviewPage) {
+          setState(() => _reviewPage = newPage % _reviews.length);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _reviewCtrl.dispose();
+    _reviewTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startReviewTimer() {
+    _reviewTimer?.cancel();
+    _reviewTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_reviewCtrl.hasClients) return;
+      _reviewCtrl.nextPage(
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
+  Future<void> _refresh() async {
+    await _fetchCertificates();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _fetchCertificates() async {
+    setState(() => _isLoadingCertificates = true);
+    final certificates = await Api.getCertificates();
+    setState(() {
+      _certificates = certificates;
+      _isLoadingCertificates = false;
+    });
+  }
+
+  /// Glassmorphism card wrapper
   Widget _glass({required Widget child}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: Colors.white.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            border: Border.all(
+              color: _borderColor.withValues(alpha: 0.12),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: child,
         ),
@@ -23,245 +209,457 @@ class About extends StatelessWidget {
     );
   }
 
-  TextStyle get _title => const TextStyle(
-    fontSize: 20,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
+  TextStyle get _sectionTitle => const TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+    color: kTextDark,
+    letterSpacing: -0.2,
   );
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom + 30;
+
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.asset("assets/images/fixco.png", height: 110),
-              ),
-            ),
+      backgroundColor: _bgLight,
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        color: kPrimary,
+        backgroundColor: Colors.white,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
 
-            const SizedBox(height: 25),
-            Text("About Us", style: _title),
-            const SizedBox(height: 10),
+            // ── Title Bar ──
+            const SliverToBoxAdapter(child: AboutTitleBar()),
 
-            _glass(
-              child: const Text(
-                "MEDCO Contracting delivers reliable, high-quality maintenance and contracting services across the UAE. Expert-driven solutions with fast response and proven client satisfaction.",
-                style: TextStyle(color: Colors.white70),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-            const Row(
-              children: [
-                Expanded(child: StatCard("30+", "Years")),
-                SizedBox(width: 10),
-                Expanded(child: StatCard("22", "Nationalities")),
-                SizedBox(width: 10),
-                Expanded(child: StatCard("25", "Languages")),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-            const InfoCard(
-              icon: Icons.flag,
-              title: "Mission",
-              desc: "Deliver high-quality services with trust.",
-            ),
-            const SizedBox(height: 12),
-            const InfoCard(
-              icon: Icons.visibility,
-              title: "Vision",
-              desc: "To become a leading service provider.",
-            ),
-
-            const SizedBox(height: 25),
-            Text("Our Branches", style: _title),
-            const SizedBox(height: 10),
-
-            BranchCard(
-              icon: Icons.location_city_outlined,
-              branches: const [
-                BranchItem(
-                  name: "Dubai",
-                  subtitle: "Head Office",
-                  url: "https://kingspalace.com/",
-                  isHeadOffice: true,
-                ),
-                BranchItem(name: "Sharjah", url: "https://kingspalace.com/"),
-                BranchItem(name: "Ajman", url: "https://kingspalace.com/"),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Text("International Branches", style: _title),
-            const SizedBox(height: 10),
-
-            BranchCard(
-              icon: Icons.public_outlined,
-              branches: const [
-                BranchItem(name: "Romania", url: "https://kingspalace.com/"),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Text("Sister Companies", style: _title),
-            const SizedBox(height: 10),
-
-            BranchCard(
-              icon: Icons.business_outlined,
-              branches: const [
-                BranchItem(
-                  name: "Kings' Palace Real Estate",
-                  url: "https://kingspalace.com/",
-                ),
-                BranchItem(
-                  name: "Kings' Land Consultancy",
-                  url: "https://kingspalace.com/",
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 25),
-
-            Text("Certifications", style: _title),
-            const SizedBox(height: 10),
-
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.82,
-              children: const [
-                CertCard(
-                  imagePath: "assets/images/certificate.jpg",
-                  title: "ISO Environmental",
-                ),
-                CertCard(
-                  imagePath: "assets/images/certificate.jpg",
-                  title: "Health & Safety",
-                ),
-                CertCard(
-                  imagePath: "assets/images/certificate.jpg",
-                  title: "Quality Management",
-                ),
-                CertCard(
-                  imagePath: "assets/images/certificate.jpg",
-                  title: "Dubai Chamber",
-                ),
-                CertCard(
-                  imagePath: "assets/images/certificate.jpg",
-                  title: "ISO 9001",
-                ),
-                CertCard(
-                  imagePath: "assets/images/certificate.jpg",
-                  title: "ISO 14001",
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 25),
-            Text("What Our Clients Say", style: _title),
-            const SizedBox(height: 14),
-
-            const ReviewCarousel(
-              reviews: [
-                ReviewData(
-                  quote:
-                  "Great environment, professional and nice people. They care about their clients and train their agents frequently.",
-                  name: "Mohamed Al Hamdhy",
-                  role: "Property Investor",
-                  imagePath: "assets/images/client1.jpg",
-                ),
-                ReviewData(
-                  quote:
-                  "The best real estate company I have ever dealt with. Very professional, experienced and helpful agents.",
-                  name: "Lisa Cudrow",
-                  role: "Homeowner",
-                  imagePath: "assets/images/client2.jpg",
-                ),
-                ReviewData(
-                  quote:
-                  "We had a great experience with Kings Palace Real Estate. They went above and beyond to help us move.",
-                  name: "John Smith",
-                  role: "Business Owner",
-                  imagePath: "assets/images/client3.jpg",
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 25),
-            Text("Leadership", style: _title),
-            const SizedBox(height: 10),
-
-            _glass(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.asset(
-                      "assets/images/leader.jpg",
-                      width: 90,
-                      height: 90,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 90,
-                        height: 90,
-                        color: Colors.white12,
-                        child: const Icon(
-                          Icons.person,
-                          size: 40,
-                          color: Colors.white38,
+            // ── Section 1: About card ──
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _glass(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          "assets/images/fixco.png",
+                          width: 90,
+                          height: 90,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 90,
+                            height: 90,
+                            color: Colors.black12,
+                            child: const Icon(Icons.business,
+                                size: 40, color: Colors.black38),
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Text(
+                          "MEDCO Contracting delivers reliable, high-quality maintenance services across the UAE with expert teams and fast response.",
+                          style: TextStyle(color: _textMid),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 14)),
+
+            // ── Stat Numbers ──
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: const [
+                    Expanded(child: StatCard("30+", "Years")),
+                    SizedBox(width: 10),
+                    Expanded(child: StatCard("22", "Nationalities")),
+                    SizedBox(width: 10),
+                    Expanded(child: StatCard("25", "Languages")),
+                  ],
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 25)),
+
+            // ── Section 2: Our Branches ──
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text("Our Branches", style: _sectionTitle),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 10)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: BranchCard(
+                  icon: Icons.location_city_outlined,
+                  branches: const [
+                    BranchItem(
+                      name: "Dubai",
+                      subtitle: "Head Office",
+                      url: "https://kingspalace.com/",
+                      isHeadOffice: true,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 25)),
+
+            // ── Section 3: Sister Companies ──
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text("Sister Companies", style: _sectionTitle),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 10)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: BranchCard(
+                  icon: Icons.business_outlined,
+                  branches: const [
+                    BranchItem(
+                      name: "Kings' Palace Real Estate",
+                      url: "https://kingspalace.com/",
+                    ),
+                    BranchItem(
+                      name: "Kings' Land Consultancy",
+                      url: "https://kingspalace.com/",
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 25)),
+
+            // ── Section 4: Certifications ──
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text("Certifications", style: _sectionTitle),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 10)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildCertificatesGrid(),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 25)),
+
+            // ── Section 5: What Our Clients Say ──
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text("What Our Clients Say", style: _sectionTitle),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 10)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildReviewCarousel(),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 25)),
+
+            // ── Section 6: Leadership ──
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text("Leadership", style: _sectionTitle),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 10)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _glass(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          "assets/images/chairman.png",
+                          width: 90,
+                          height: 90,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 90,
+                            height: 90,
+                            color: Colors.black12,
+                            child: const Icon(Icons.person,
+                                size: 40, color: Colors.black38),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "H.E. Dr. Sami Al Sawalehi",
+                              style: TextStyle(
+                                color: kTextDark,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              "Founder & Visionary Leader",
+                              style: TextStyle(color: kTextLight, fontSize: 12),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              "Leading MEDCO's growth across the UAE and international markets since 1991.",
+                              style: TextStyle(
+                                color: _textMid,
+                                fontSize: 11,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Bottom safe-area padding — nothing hidden under nav bar ──
+            SliverPadding(
+              padding: EdgeInsets.only(bottom: bottomPadding),
+              sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  // Certificates Grid (manual rows — no GridView spacing issues)
+  // ─────────────────────────────────────────────
+  Widget _buildCertificatesGrid() {
+    if (_isLoadingCertificates) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 32.0),
+          child: CircularProgressIndicator(color: kPrimary),
+        ),
+      );
+    }
+
+    if (_certificates.isEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _borderColor.withValues(alpha: 0.12),
+                width: 1.2,
+              ),
+            ),
+            child: const Center(
+              child: Text(
+                "No certifications available",
+                style: TextStyle(color: kTextLight),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final rows = <Widget>[];
+    for (int i = 0; i < _certificates.length; i += 2) {
+      final cert1 = _certificates[i];
+      final cert2 = i + 1 < _certificates.length ? _certificates[i + 1] : null;
+
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: AspectRatio(
+                aspectRatio: 0.82,
+                child: CertCard(
+                  imageUrl: cert1['image'] ?? '',
+                  title: cert1['title'] ?? 'Certificate',
+                  description: cert1['description'] ?? '',
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: cert2 != null
+                  ? AspectRatio(
+                aspectRatio: 0.82,
+                child: CertCard(
+                  imageUrl: cert2['image'] ?? '',
+                  title: cert2['title'] ?? 'Certificate',
+                  description: cert2['description'] ?? '',
+                ),
+              )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      );
+
+      if (i + 2 < _certificates.length) {
+        rows.add(const SizedBox(height: 10));
+      }
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: rows,
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  // Review Carousel
+  // ─────────────────────────────────────────────
+  Widget _buildReviewCarousel() {
+    return Column(
+      children: [
+        SizedBox(
+          height: 210,
+          child: PageView.builder(
+            scrollDirection: Axis.horizontal,
+            controller: _reviewCtrl,
+            physics: const BouncingScrollPhysics(),
+            itemBuilder: (context, index) {
+              final reviewIndex = index % _reviews.length;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: _ReviewCard(review: _reviews[reviewIndex]),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _CarouselArrow(
+                icon: Icons.chevron_left_rounded,
+                onTap: () => _reviewCtrl.previousPage(
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeInOutCubic,
+                ),
+              ),
+              _SmoothDots(count: _reviews.length, current: _reviewPage),
+              _CarouselArrow(
+                icon: Icons.chevron_right_rounded,
+                onTap: () => _reviewCtrl.nextPage(
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeInOutCubic,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Title Bar
+// ─────────────────────────────────────────────
+class AboutTitleBar extends StatelessWidget {
+  const AboutTitleBar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+              decoration: BoxDecoration(
+                color: kPrimary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: kPrimary.withValues(alpha: 0.22),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: kPrimary,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "H.E. Dr. Sami Al Sawalehi",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          "Founder & Visionary Leader",
-                          style: TextStyle(color: Colors.white54, fontSize: 12),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          "Leading KPRE's growth across the UAE and international markets since 1991.",
-                          style: TextStyle(
-                            color: Colors.white38,
-                            fontSize: 11,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
+                  const SizedBox(width: 7),
+                  const Text(
+                    'MEDCO CONTRACTING',
+                    style: TextStyle(
+                      color: kPrimary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.4,
                     ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 30),
-            const FooterWidget(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 13),
+            const Text(
+              'About Us',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: kTextDark,
+                height: 1.1,
+                letterSpacing: -0.4,
+              ),
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              'Learn more about MEDCO Contracting',
+              style: TextStyle(color: kTextLight, fontSize: 14),
+            ),
           ],
         ),
       ),
@@ -269,11 +667,236 @@ class About extends StatelessWidget {
   }
 }
 
-class CertCard extends StatelessWidget {
-  final String imagePath;
-  final String title;
+// ─────────────────────────────────────────────
+// Review Card
+// ─────────────────────────────────────────────
+class _ReviewCard extends StatelessWidget {
+  final Review review;
+  const _ReviewCard({required this.review});
 
-  const CertCard({super.key, required this.imagePath, required this.title});
+  String get _truncatedReview {
+    if (review.review.length <= 50) return review.review;
+    return '${review.review.substring(0, 47)}...';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _borderColor.withValues(alpha: 0.12),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(25),
+                      child: Image.asset(
+                        review.profileImagePath,
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [kPrimary, kAccent],
+                            ),
+                            border: Border.all(
+                              color: _borderColor.withValues(alpha: 0.2),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              review.name.isNotEmpty ? review.name[0] : 'U',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            review.name,
+                            style: const TextStyle(
+                              color: kTextDark,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            review.job,
+                            style: const TextStyle(color: kTextLight, fontSize: 11),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  _truncatedReview,
+                  style: const TextStyle(
+                    color: _textMid,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: List.generate(5, (index) {
+                    final starValue = index + 1;
+                    if (starValue <= review.rating.floor()) {
+                      return const Icon(Icons.star_rounded,
+                          color: Colors.amber, size: 18);
+                    } else if (starValue - review.rating > 0 &&
+                        starValue - review.rating < 1) {
+                      return const Icon(Icons.star_half_rounded,
+                          color: Colors.amber, size: 18);
+                    } else {
+                      return const Icon(Icons.star_border_rounded,
+                          color: Colors.black26, size: 18);
+                    }
+                  }),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Smooth Dots
+// ─────────────────────────────────────────────
+class _SmoothDots extends StatelessWidget {
+  final int count;
+  final int current;
+  const _SmoothDots({required this.count, required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(count, (i) {
+        final active = i == current;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeInOutCubic,
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: active ? 24.0 : 6.0,
+          height: 6.0,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(3),
+            gradient: active
+                ? const LinearGradient(colors: [kPrimary, kAccent])
+                : null,
+            color: active ? null : Colors.black.withValues(alpha: 0.15),
+            boxShadow: active
+                ? [
+              BoxShadow(
+                color: kPrimary.withValues(alpha: 0.35),
+                blurRadius: 7,
+                offset: const Offset(0, 2),
+              ),
+            ]
+                : null,
+          ),
+        );
+      }),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Carousel Arrow
+// ─────────────────────────────────────────────
+class _CarouselArrow extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _CarouselArrow({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.6),
+          border: Border.all(
+            color: _borderColor.withValues(alpha: 0.15),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.07),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: kPrimary, size: 22),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Cert Card
+// ─────────────────────────────────────────────
+class CertCard extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  final String description;
+
+  const CertCard({
+    super.key,
+    required this.imageUrl,
+    required this.title,
+    required this.description,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -282,54 +905,81 @@ class CertCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            imagePath,
+          _CachedImage(
+            src: imageUrl.isNotEmpty ? imageUrl : null,
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: Colors.white.withValues(alpha: 0.06),
+            fallback: Container(
+              color: Colors.black.withValues(alpha: 0.05),
               child: const Center(
                 child: Icon(
                   Icons.workspace_premium_outlined,
-                  color: Colors.white24,
+                  color: Colors.black26,
                   size: 40,
                 ),
               ),
             ),
           ),
-
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [Color(0xDD000000), Colors.transparent],
-                  stops: [0.0, 1.0],
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(10, 20, 10, 10),
-              child: Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  height: 1.3,
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.92),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(10, 20, 10, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: kTextDark,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          height: 1.3,
+                        ),
+                      ),
+                      if (description.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: _textMid,
+                            fontSize: 9,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                border: Border.all(
+                  color: _borderColor.withValues(alpha: 0.12),
+                  width: 1.2,
+                ),
               ),
             ),
           ),
@@ -339,232 +989,9 @@ class CertCard extends StatelessWidget {
   }
 }
 
-class ReviewData {
-  final String quote;
-  final String name;
-  final String role;
-  final String imagePath;
-
-  const ReviewData({
-    required this.quote,
-    required this.name,
-    required this.role,
-    required this.imagePath,
-  });
-}
-
-class ReviewCarousel extends StatefulWidget {
-  final List<ReviewData> reviews;
-
-  const ReviewCarousel({super.key, required this.reviews});
-
-  @override
-  State<ReviewCarousel> createState() => _ReviewCarouselState();
-}
-
-class _ReviewCarouselState extends State<ReviewCarousel> {
-  final PageController _pageCtrl = PageController(viewportFraction: 0.88);
-  int _current = 0;
-
-  @override
-  void dispose() {
-    _pageCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 190,
-          child: PageView.builder(
-            controller: _pageCtrl,
-            itemCount: widget.reviews.length,
-            onPageChanged: (i) => setState(() => _current = i),
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: ReviewCard(data: widget.reviews[index]),
-              );
-            },
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(widget.reviews.length, (i) {
-            final isActive = i == _current;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeInOut,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: isActive ? 20 : 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: isActive
-                    ? Colors.white
-                    : Colors.white.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(999),
-              ),
-            );
-          }),
-        ),
-      ],
-    );
-  }
-}
-
-class ReviewCard extends StatelessWidget {
-  final ReviewData data;
-
-  const ReviewCard({super.key, required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 44,
-                height: 44,
-                child: ClipOval(
-                  child: Image.asset(
-                    data.imagePath,
-                    width: 44,
-                    height: 44,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.white12,
-                      child: const Icon(
-                        Icons.person,
-                        size: 24,
-                        color: Colors.white38,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      data.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      data.role,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '\u201C',
-                style: TextStyle(
-                  fontSize: 34,
-                  height: 0.85,
-                  color: Colors.white24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  data.quote,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    height: 1.55,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class FooterWidget extends StatelessWidget {
-  const FooterWidget({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Text(
-          "FixCo Services",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
-          ),
-        ),
-
-        const SizedBox(height: 6),
-
-        Text(
-          "Version 1.0.0",
-          style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.35), fontSize: 12),
-        ),
-
-        const SizedBox(height: 6),
-
-        Text(
-          "© 2026 All Rights Reserved",
-          style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.30), fontSize: 11),
-        ),
-
-        const SizedBox(height: 4),
-      ],
-    );
-  }
-}
-
+// ─────────────────────────────────────────────
+// Branch Item / Card
+// ─────────────────────────────────────────────
 class BranchItem {
   final String name;
   final String? subtitle;
@@ -594,129 +1021,135 @@ class BranchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(branches.length, (index) {
-          final b = branches[index];
-          final isLast = index == branches.length - 1;
-
-          return Column(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _borderColor.withValues(alpha: 0.12),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              InkWell(
-                onTap: () => _launch(b.url),
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(icon, size: 18, color: Colors.white70),
-                      ),
-                      const SizedBox(width: 14),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+            children: List.generate(branches.length, (index) {
+              final b = branches[index];
+              final isLast = index == branches.length - 1;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: () => _launch(b.url),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(icon, size: 18, color: _textMid),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Flexible(
-                                  child: Text(
-                                    b.name,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        b.name,
+                                        style: const TextStyle(
+                                          color: kTextDark,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    if (b.isHeadOffice) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber
+                                              .withValues(alpha: 0.15),
+                                          borderRadius:
+                                          BorderRadius.circular(999),
+                                          border: Border.all(
+                                            color: Colors.amber
+                                                .withValues(alpha: 0.5),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'HQ',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.amber,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                                if (b.isHeadOffice) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 7,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber
-                                          .withValues(alpha: 0.15),
-                                      borderRadius:
-                                      BorderRadius.circular(999),
-                                      border: Border.all(
-                                        color: Colors.amber
-                                            .withValues(alpha: 0.4),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'HQ',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.amber,
-                                        letterSpacing: 0.8,
-                                      ),
-                                    ),
+                                if (b.subtitle != null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    b.subtitle!,
+                                    style: const TextStyle(
+                                        color: kTextLight, fontSize: 11),
                                   ),
                                 ],
                               ],
                             ),
-                            if (b.subtitle != null) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                b.subtitle!,
-                                style: const TextStyle(
-                                  color: Colors.white38,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
+                          ),
+                          const Icon(Icons.open_in_new_rounded,
+                              size: 16, color: kTextLight),
+                        ],
                       ),
-
-                      const Icon(
-                        Icons.open_in_new_rounded,
-                        size: 16,
-                        color: Colors.white38,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-
-              if (!isLast)
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Colors.white.withValues(alpha: 0.07),
-                  indent: 66,
-                  endIndent: 16,
-                ),
-            ],
-          );
-        }),
+                  if (!isLast)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Colors.black.withValues(alpha: 0.07),
+                      indent: 66,
+                      endIndent: 16,
+                    ),
+                ],
+              );
+            }),
+          ),
+        ),
       ),
     );
   }
 }
 
+// ─────────────────────────────────────────────
+// Stat Card
+// ─────────────────────────────────────────────
 class StatCard extends StatelessWidget {
   final String value;
   final String label;
@@ -725,76 +1158,45 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: _borderColor.withValues(alpha: 0.12),
+              width: 1.2,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: Colors.white70)),
-        ],
-      ),
-    );
-  }
-}
-
-class InfoCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String desc;
-
-  const InfoCard({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.desc,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+          child: Column(
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  color: kTextDark,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  desc,
-                  style:
-                  const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: const TextStyle(color: _textMid, fontSize: 13),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
-import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:fixco/services/api.dart';
 import 'package:fixco/services/user_session.dart';
 import 'package:fixco/features/authentication/register/pages/register.dart';
-import 'package:fixco/features/authentication/login/pages/login_success.dart';
 import 'package:fixco/features/authentication/login/pages/login_error.dart';
+import '../../../../navigation/app_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,50 +23,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   Future<String?> getFCMToken() async {
-    try {
-      FirebaseMessaging messaging = FirebaseMessaging.instance;
-      
-      // Request permission first
-      NotificationSettings settings = await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-      
-      if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-        print('Notification permission denied');
-        return null;
-      }
-      
-      // On iOS, wait for APNS token to be registered
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
-        print('Waiting for APNS token on iOS...');
-        await Future.delayed(const Duration(seconds: 2));
-      }
-      
-      // Get the token with retry logic
-      String? token;
-      int retries = 0;
-      while (token == null && retries < 3) {
-        token = await messaging.getToken();
-        if (token == null) {
-          print('Retry ${retries + 1} - waiting for token...');
-          await Future.delayed(const Duration(milliseconds: 500));
-          retries++;
-        }
-      }
-      
-      if (token != null) {
-        print('FCM Token obtained: ${token.substring(0, token.length > 20 ? 20 : token.length)}...');
-      } else {
-        print('Failed to get FCM token after retries');
-      }
-      
-      return token;
-    } catch (e) {
-      print('Error getting FCM token: $e');
-      return null;
-    }
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission();
+    return await messaging.getToken();
   }
 
   Future<void> _login() async {
@@ -96,14 +53,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // Save token in background (don't wait for it)
-      _saveFCMToken(user['id']);
+      final String? token = await getFCMToken();
 
       if (!mounted) return;
 
+      if (token != null) {
+        await Api.saveFCMToken(user['id'], token);
+      }
+
+      if (!mounted) return;
+
+      // ✅ After login, go to AppShell (with bottom bar)
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => LoginSuccessPage(user: user)),
+        MaterialPageRoute(builder: (_) => const AppShell()),
       );
     } else {
       Navigator.push(
@@ -115,36 +78,37 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   }
-  
-  Future<void> _saveFCMToken(int userId) async {
-    final String? token = await getFCMToken();
-    if (token != null && mounted) {
-      await Api.saveFCMToken(userId, token);
-      print('FCM token saved for user $userId');
-    }
+
+  void _enterAsGuest() {
+    // ✅ Guest mode also goes to AppShell (bottom bar appears)
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const AppShell()),
+    );
   }
 
   InputDecoration _inputDecoration(String hint, IconData icon) {
     return InputDecoration(
       hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.white54),
+      prefixIcon: Icon(icon, color: Colors.grey.shade600),
       filled: true,
-      fillColor: const Color(0xFF1C1C1E),
+      fillColor: Colors.grey.shade100,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
-      hintStyle: const TextStyle(color: Colors.white38),
+      hintStyle: TextStyle(color: Colors.grey.shade500),
+      contentPadding: const EdgeInsets.symmetric(vertical: 16),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Login", style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.black,
+        title: const Text("Login", style: TextStyle(color: Colors.black87)),
+        backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -158,26 +122,25 @@ class _LoginScreenState extends State<LoginScreen> {
               const Text(
                 "Welcome Back 👋",
                 style: TextStyle(
-                  fontSize: 26,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Colors.black87,
                 ),
               ),
 
               const SizedBox(height: 8),
 
-              const Text(
+              Text(
                 "Login to continue",
-                style: TextStyle(color: Colors.white54),
+                style: TextStyle(color: Colors.grey.shade600),
               ),
 
               const SizedBox(height: 40),
 
               TextFormField(
                 controller: _emailController,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.black87),
                 decoration: _inputDecoration("Email", Icons.email),
-                keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value!.isEmpty) return "Enter email";
                   if (!value.contains("@")) return "Enter valid email";
@@ -190,14 +153,12 @@ class _LoginScreenState extends State<LoginScreen> {
               TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.black87),
                 decoration: _inputDecoration("Password", Icons.lock).copyWith(
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: Colors.white38,
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey.shade600,
                     ),
                     onPressed: () {
                       setState(() {
@@ -222,20 +183,41 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00C853),
-                    foregroundColor: Colors.black,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.black)
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                          "Login",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    "Login",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Guest mode button
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: _enterAsGuest,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.grey.shade400),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    "Continue as Guest",
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
                 ),
               ),
 
@@ -248,9 +230,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     MaterialPageRoute(builder: (_) => const RegisterScreen()),
                   );
                 },
-                child: const Text(
+                child: Text(
                   "Don't have an account? Register",
-                  style: TextStyle(color: Colors.white54),
+                  style: TextStyle(color: Colors.grey.shade700),
                 ),
               ),
             ],

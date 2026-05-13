@@ -5,7 +5,7 @@ import 'package:fixco/features/home/pages/home.dart';
 import 'package:fixco/features/contact/pages/contact.dart';
 import 'package:fixco/features/about/pages/about.dart';
 import 'package:fixco/features/booking/pages/booking.dart';
-import 'package:fixco/features/profile/pages/profile.dart';
+import 'package:fixco/features/profile/pages/profile_page.dart';
 import 'package:fixco/services/api.dart';
 import 'package:fixco/services/user_session.dart';
 import 'package:fixco/navigation/bottom_bar.dart';
@@ -68,12 +68,12 @@ class _AppShellState extends State<AppShell> {
       extendBody: true,
       body: IndexedStack(
         index: currentIndex,
-        children: const [
+        children: [  // ✅ Removed 'const' keyword
           HomePage(),
-          About(),
+          const About(),  // Keep const if About widget has const constructor
           Booking(),
           Contact(),
-          Profile(),
+          ProfilePage(),  // ✅ Changed from Profile() to ProfilePage()
         ],
       ),
       bottomNavigationBar: BottomBar(
