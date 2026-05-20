@@ -29,6 +29,7 @@ flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
+  use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -39,5 +40,24 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    
+    # Force iOS 15.0 deployment target for all pods
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      
+      # Fix for Firebase and other modern Swift packages
+      config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+    end
+  end
+  
+  # CRITICAL: Fix Flutter.podspec which may revert to 13.0 after pod install
+  flutter_podspec_path = File.join(installer.sandbox.root.parent, 'Flutter.podspec')
+  if File.exist?(flutter_podspec_path)
+    content = File.read(flutter_podspec_path)
+    if content.include?("s.ios.deployment_target = '13.0'")
+      new_content = content.gsub("s.ios.deployment_target = '13.0'", "s.ios.deployment_target = '15.0'")
+      File.write(flutter_podspec_path, new_content)
+      puts "✅ Fixed Flutter.podspec deployment target to 15.0"
+    end
   end
 end
