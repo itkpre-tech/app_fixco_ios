@@ -13,36 +13,65 @@ workflows:
       - name: Get Flutter packages
         script: flutter pub get
 
-      - name: Install CocoaPods
+      - name: Verify iOS Deployment Target (15.0)
         script: |
+          echo "=== VERIFYING iOS 15.0 CONFIGURATION ==="
+          
+          # Check AppFrameworkInfo.plist
+          echo "AppFrameworkInfo.plist MinimumOSVersion:"
+          /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" ios/Flutter/AppFrameworkInfo.plist
+          
+          # Check xcconfig files
+          echo -e "\nDebug.xcconfig deployment target:"
+          grep "IPHONEOS_DEPLOYMENT_TARGET" ios/Flutter/Debug.xcconfig || echo "Not found"
+          
+          echo -e "\nRelease.xcconfig deployment target:"
+          grep "IPHONEOS_DEPLOYMENT_TARGET" ios/Flutter/Release.xcconfig || echo "Not found"
+          
+          echo -e "\nGenerated.xcconfig deployment target:"
+          grep "IPHONEOS_DEPLOYMENT_TARGET" ios/Flutter/Generated.xcconfig || echo "Not found"
+          
+          # Ensure the value is 15.0 (add if missing)
+          if ! grep -q "IPHONEOS_DEPLOYMENT_TARGET = 15.0" ios/Flutter/Debug.xcconfig; then
+            echo "IPHONEOS_DEPLOYMENT_TARGET = 15.0" >> ios/Flutter/Debug.xcconfig
+            echo "✅ Added to Debug.xcconfig"
+          fi
+          
+          if ! grep -q "IPHONEOS_DEPLOYMENT_TARGET = 15.0" ios/Flutter/Release.xcconfig; then
+            echo "IPHONEOS_DEPLOYMENT_TARGET = 15.0" >> ios/Flutter/Release.xcconfig
+            echo "✅ Added to Release.xcconfig"
+          fi
+
+      - name: Clean and Install Pods
+        script: |
+          echo "=== CLEANING AND INSTALLING PODS ==="
           cd ios
-          pod install
+          rm -rf Pods Podfile.lock
+          pod install --repo-update
           cd ..
 
       - name: Inject provisioning profile
         script: |
           PROFILE_UUID="5af7596f-d4fd-426d-b36d-ab1e8f7de5af"
-
-          # First let xcode-project use-profiles run
+          
+          echo "=== INJECTING PROVISIONING PROFILE ==="
           xcode-project use-profiles
-
-          # Then force inject the UUID directly
+          
+          # Direct injection
+          cd ios
           sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = \"\"/PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\"/g" \
-            ios/Runner.xcodeproj/project.pbxproj
+            Runner.xcodeproj/project.pbxproj
           sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = Fixco_AppStore_Profile;/PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\";/g" \
-            ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' "s/\"PROVISIONING_PROFILE_SPECIFIER\[sdk=iphoneos\*\]\" = \"\"/\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\" = \"$PROFILE_UUID\"/g" \
-            ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' "s/\"PROVISIONING_PROFILE_SPECIFIER\[sdk=iphoneos\*\]\" = Fixco_AppStore_Profile;/\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\" = \"$PROFILE_UUID\";/g" \
-            ios/Runner.xcodeproj/project.pbxproj
-
-          echo "--- pbxproj check ---"
-          grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj
+            Runner.xcodeproj/project.pbxproj
+          cd ..
+          
+          echo "✅ Provisioning profile injected"
 
       - name: Create export options
         script: |
           PROFILE_UUID="5af7596f-d4fd-426d-b36d-ab1e8f7de5af"
-          echo "Using profile UUID: $PROFILE_UUID"
+          TEAM_ID="QR7HGT644D"
+          
           cat > /tmp/ExportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -51,7 +80,7 @@ workflows:
             <key>method</key>
             <string>app-store</string>
             <key>teamID</key>
-            <string>QR7HGT644D</string>
+            <string>$TEAM_ID</string>
             <key>signingStyle</key>
             <string>manual</string>
             <key>provisioningProfiles</key>
@@ -62,19 +91,26 @@ workflows:
           </dict>
           </plist>
           EOF
-          echo "Export options:"
-          cat /tmp/ExportOptions.plist
 
       - name: Flutter build IPA
         script: |
+          echo "=== BUILDING IPA ==="
           flutter build ipa --release \
             --build-number=12 \
             --export-options-plist=/tmp/ExportOptions.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
 
     publishing:
       app_store_connect:
         auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+
+      email:
+        recipients:
+          - it.kpre@gmail.com
+        notify:
+          success: true
+          failure: true
