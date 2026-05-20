@@ -1,0 +1,124 @@
+{
+  "profile_title": "الملف الشخصي",
+  "account": "الحساب",
+  "preferences": "التفضيلات",
+  "security": "الأمان",
+  "support": "الدعم",
+  "app": "التطبيق",
+  "session": "الجلسة",
+
+  "edit_profile": "تعديل الملف الشخصي",
+  "reset_password": "إعادة تعيين كلمة المرور",
+  "saved_addresses": "العناوين المحفوظة",
+  "payment_methods": "طرق الدفع",
+
+  "my_bookings": "حجوزاتي",
+  "invoices": "الفواتير",
+
+  "dark_mode": "الوضع الليلي",
+  "notifications": "الإشعارات",
+  "language": "اللغة",
+  "english": "الإنجليزية",
+  "arabic": "العربية",
+
+  "privacy_policy": "سياسة الخصوصية",
+  "terms_conditions": "الشروط والأحكام",
+  "two_factor_authentication": "المصادقة الثنائية",
+
+  "help_center": "مركز المساعدة",
+  "contact_support": "التواصل مع الدعم",
+  "faq": "الأسئلة الشائعة",
+  "help": "المساعدة",
+  "report_issue": "الإبلاغ عن مشكلة",
+
+  "about": "حول التطبيق",
+  "app_version": "إصدار التطبيق",
+
+  "logout": "تسجيل الخروج",
+  "retry": "إعادة المحاولة",
+
+  "guest_user": "زائر",
+  "guest_description": "قم بتسجيل الدخول أو إنشاء حساب للوصول إلى ملفك الشخصي وحجوزاتك وفواتيرك والمزيد.",
+  "login_signup": "تسجيل الدخول / إنشاء حساب",
+
+  "privacy_policy_fixco": "سياسة الخصوصية – تطبيق Fixco",
+  "last_updated": "آخر تحديث: 13 مايو 2026",
+
+  "Introduction": "مقدمة",
+  "1. Information We Collect": "١. المعلومات التي نجمعها",
+  "2. Location Information": "٢. معلومات الموقع",
+  "3. How We Use Your Information": "٣. كيفية استخدام معلوماتك",
+  "4. Payment Information": "٤. معلومات الدفع",
+  "5. Sharing of Information": "٥. مشاركة المعلومات",
+  "6. International Data Transfers": "٦. نقل البيانات الدولية",
+  "7. Advertising & Third-Party Services": "٧. الإعلانات وخدمات الطرف الثالث",
+  "8. Data Security": "٨. أمن البيانات",
+  "9. Data Retention": "٩. الاحتفاظ بالبيانات",
+  "10. Your Rights": "١٠. حقوقك",
+  "11. Children’s Privacy": "١١. خصوصية الأطفال",
+  "12. Sanctions & Restricted Countries": "١٢. العقوبات والدول المقيدة",
+  "13. Changes to This Privacy Policy": "١٣. التغييرات على سياسة الخصوصية",
+  "14. Contact Us": "١٤. اتصل بنا",
+  "15. Consent": "١٥. الموافقة",
+
+  "privacy_intro_content": "في شركة Fixed Company، نحن نُقدّر خصوصيتك ونلتزم بحماية معلوماتك الشخصية.",
+
+  "privacy_collect_content": "قد نقوم بجمع ومعالجة معلومات شخصية مثل الاسم الكامل ورقم الهاتف والبريد الإلكتروني والعنوان ومعلومات تسجيل الدخول وتفاصيل الدفع والمعلومات المقدمة عبر طلبات الدعم أو التواصل.",
+
+  "privacy_location_content": "بموافقتك، قد نقوم بجمع معلومات الموقع الدقيقة أو التقريبية لتحسين تقديم الخدمات والوظائف المرتبطة بالموقع.",
+
+  "privacy_usage_content": "قد تُستخدم معلوماتك لتقديم الخدمات وإدارتها ومعالجة المدفوعات وتحسين تجربة المستخدم وتخصيص المحتوى وإرسال الإشعارات ومنع الاحتيال واكتشاف المشكلات الأمنية والامتثال للالتزامات القانونية وإنشاء تقارير تحليلية مجهولة.",
+
+  "privacy_payment_content": "تتم معالجة جميع المدفوعات عبر بوابات دفع آمنة.",
+
+  "privacy_sharing_content": "قد نشارك المعلومات مع الموظفين المعتمدين والمقاولين ومزودي الخدمات ومعالجي الدفع ومزودي التحليلات والاستضافة والجهات الحكومية عند الحاجة القانونية.",
+
+  "privacy_transfer_content": "قد تتم معالجة معلوماتك داخل دولة الإمارات العربية المتحدة أو دول أخرى يعمل بها مزودو خدماتنا.",
+
+  "privacy_ads_content": "قد يستخدم التطبيق خدمات خارجية مثل أدوات التحليل ومزودي الإعلانات.",
+
+  "privacy_security_content": "نطبق إجراءات أمنية معقولة تجارياً لحماية معلوماتك.",
+
+  "privacy_retention_content": "نحتفظ بالمعلومات الشخصية فقط طالما كان ذلك ضرورياً.",
+
+  "privacy_rights_content": "اعتماداً على القوانين المعمول بها، يمكنك طلب الوصول أو التصحيح أو الحذف أو التقييد أو الاعتراض أو سحب الموافقة أو نسخة من معلوماتك الشخصية.",
+
+  "privacy_children_content": "تطبيقنا غير مخصص للأطفال دون سن 13 عاماً.",
+
+  "privacy_sanctions_content": "لن تقدم شركة Fixed Company خدمات أو منتجات للأفراد أو الدول المقيدة.",
+
+  "privacy_changes_content": "قد نقوم بتحديث سياسة الخصوصية بشكل دوري.",
+
+  "privacy_contact_content": "شركة Fixed Company\n\nالبريد الإلكتروني: info@getkp.com\nالهاتف: +971 503455855\nالإمارات العربية المتحدة",
+
+  "privacy_consent_content": "باستخدامك لتطبيق Fixed Company، فإنك تقر بأنك قرأت ووافقت على سياسة الخصوصية هذه.",
+
+
+  "contact_us": "اتصل بنا",
+  "contact_title": "اتصل بنا",
+  "contact_subtitle": "يسعدنا سماعك",
+  "contact_company_name": "شركة ميدكو للمقاولات ذ.م.م",
+  "contact_address": "مبنى الأندلس، طريق أبو هيل،\nديرة، دبي، الإمارات العربية المتحدة\nص.ب 10839",
+  "working_hours": "ساعات العمل",
+  "working_hours_sun_thu": "الأحد – الخميس: 08:30 ص – 08:00 م",
+  "working_hours_fri": "الجمعة: 08:30 ص – 07:00 م",
+  "working_hours_sat": "السبت: مغلق",
+  "contact_channels": "قنوات التواصل",
+  "contact_call": "اتصال",
+  "contact_whatsapp": "واتساب",
+  "contact_email": "البريد الإلكتروني",
+  "contact_instagram": "إنستغرام",
+  "contact_facebook": "فيسبوك",
+  "contact_find_on_map": "ابحث عنا على الخريطة",
+  "contact_form_title": "نموذج التواصل",
+  "contact_form_name": "الاسم الكامل",
+  "contact_form_email": "البريد الإلكتروني",
+  "contact_form_phone": "رقم الجوال",
+  "contact_form_message": "رسالتك",
+  "contact_form_name_error": "الرجاء إدخال اسمك",
+  "contact_form_email_error": "البريد الإلكتروني مطلوب",
+  "contact_form_message_error": "الرجاء إدخال رسالتك",
+  "contact_form_send": "إرسال الرسالة",
+  "contact_sent_success": "تم إرسال الرسالة بنجاح!",
+  "contact_sent_failed": "فشل إرسال الرسالة. يرجى المحاولة مرة أخرى."
+}
