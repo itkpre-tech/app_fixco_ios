@@ -1,107 +1,116 @@
 import 'package:flutter/material.dart';
 import '../models/profile_model.dart';
-import '../shared/profile_constants.dart';
+import '../widgets/glass_card.dart';
 
-/// Displays the authenticated user's profile details inside a rounded card.
-///
-/// Accepts a fully resolved [ProfileModel] — all loading/error states are
-/// handled upstream in [UserProfilePage] before this card is rendered.
 class ProfileInfoCard extends StatelessWidget {
-  const ProfileInfoCard({super.key, required this.profile});
+  const ProfileInfoCard({
+    super.key,
+    required this.profile,
+    required this.isDark,
+  });
 
   final ProfileModel profile;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(ProfileConstants.cardBorderRadius),
-      ),
-      color: Colors.grey.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _AvatarCircle(initials: profile.initials),
-            const SizedBox(height: 16),
-            _InfoRow(title: 'Full Name', value: profile.fullName),
-            const Divider(),
-            _InfoRow(title: 'Email', value: profile.email),
-            const Divider(),
-            _InfoRow(title: 'Mobile', value: profile.phone),
-            const Divider(),
-            _InfoRow(title: 'Member Since', value: profile.memberSince),
-            const Divider(),
-            _InfoRow(
-              title: 'Total Bookings',
-              value: profile.bookingsCount.toString(),
-            ),
-            const Divider(),
-            _InfoRow(
-              title: 'Completed Jobs',
-              value: profile.completedCount.toString(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subColor = isDark ? Colors.white60 : Colors.black45;
 
-// ── Private sub-widgets ────────────────────────────────────────────────────
-
-class _AvatarCircle extends StatelessWidget {
-  const _AvatarCircle({required this.initials});
-
-  final String initials;
-
-  @override
-  Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: ProfileConstants.avatarRadius,
-      backgroundColor: Colors.grey.shade300,
-      child: Text(
-        initials,
-        style: const TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.title, required this.value});
-
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    return GlassCard(
+      isDark: isDark,
+      borderRadius: 24,
+      padding: const EdgeInsets.all(18),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              title,
-              style: const TextStyle(color: Colors.black54, fontSize: 14),
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isDark
+                  ? Colors.white.withOpacity(0.08)
+                  : Colors.black.withOpacity(0.05),
+            ),
+            child: Center(
+              child: Text(
+                profile.initials,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
             ),
           ),
+
+          const SizedBox(width: 16),
+
           Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  profile.fullName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                Row(
+                  children: [
+                    Icon(
+                      Icons.email_outlined,
+                      size: 14,
+                      color: subColor,
+                    ),
+                    const SizedBox(width: 6),
+
+                    Expanded(
+                      child: Text(
+                        profile.email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: subColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 6),
+
+                Row(
+                  children: [
+                    Icon(
+                      Icons.phone_outlined,
+                      size: 14,
+                      color: subColor,
+                    ),
+                    const SizedBox(width: 6),
+
+                    Expanded(
+                      child: Text(
+                        profile.phone,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: subColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],

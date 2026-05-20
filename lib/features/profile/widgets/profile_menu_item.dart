@@ -1,57 +1,109 @@
 import 'package:flutter/material.dart';
-import '../shared/profile_constants.dart';
+import 'package:flutter/services.dart';
+import 'glass_card.dart';
 
-/// A single tappable row used in the Profile menu list.
-///
-/// Encapsulates the card decoration, icon, label, and trailing arrow so that
-/// adding or removing menu entries in [ProfilePage] requires only one line.
 class ProfileMenuItem extends StatelessWidget {
   const ProfileMenuItem({
     super.key,
     required this.icon,
     required this.title,
-    this.iconColor = Colors.black54,
-    this.onTap,
+    required this.onTap,
+    this.subtitle,
+    this.trailing,
+    this.showChevron = true,
+    this.isDark = false,
   });
 
   final IconData icon;
   final String title;
-  final Color iconColor;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
+  final String? subtitle;
+  final Widget? trailing;
+  final bool showChevron;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.white54 : Colors.black45;
+    final chevronColor = isDark ? Colors.white38 : Colors.black38;
+
+    return GlassCard(
+      borderRadius: 18,
+      margin: const EdgeInsets.only(bottom: 10),
+      // Fixed padding: same vertical height as preference cards (14 top+bottom = 28 total)
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      blur: 14,
+      isDark: isDark,
+      onTap: onTap,
+      child: Row(
+        children: [
+          _GlassIconBox(icon: icon, isDark: isDark),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: titleColor,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: subtitleColor,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (trailing != null) trailing!,
+          if (showChevron && trailing == null)
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: chevronColor,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlassIconBox extends StatelessWidget {
+  const _GlassIconBox({required this.icon, this.isDark = false});
+
+  final IconData icon;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: ProfileConstants.menuItemSpacing),
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(ProfileConstants.menuItemBorderRadius),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(ProfileConstants.menuItemBorderRadius),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: ProfileConstants.menuItemVerticalPadding,
-            horizontal: ProfileConstants.menuItemHorizontalPadding,
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: iconColor),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: ProfileConstants.menuItemFontSize,
-                ),
-              ),
-              const Spacer(),
-              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-            ],
-          ),
+        color: isDark
+            ? Colors.white.withOpacity(0.10)
+            : Colors.black.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.12)
+              : Colors.black.withOpacity(0.08),
         ),
+      ),
+      child: Icon(
+        icon,
+        size: 18,
+        color: isDark ? Colors.white : Colors.black87,
       ),
     );
   }

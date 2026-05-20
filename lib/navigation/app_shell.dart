@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:fixco/features/home/pages/home.dart';
 import 'package:fixco/features/contact/pages/contact.dart';
@@ -10,79 +10,91 @@ import 'package:fixco/services/api.dart';
 import 'package:fixco/services/user_session.dart';
 import 'package:fixco/navigation/bottom_bar.dart';
 
+// ─── Global key — lets any widget switch tabs from outside AppShell ───────────
+final GlobalKey<AppShellState> appShellKey = GlobalKey<AppShellState>();
+
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  AppShellState createState() => AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class AppShellState extends State<AppShell> {
   int currentIndex = 0;
+
+  // ─── Public method — call appShellKey.currentState?.setTab(n) from anywhere ──
+  void setTab(int index) {
+    if (mounted && index >= 0 && index < 5) {
+      setState(() => currentIndex = index);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    initFCM();
-    setupForegroundListener();
-    setupNotificationClick();
+    _initFCM();
+    _setupForegroundListener();
+    _setupNotificationClick();
   }
 
-  Future<void> initFCM() async {
+  // ─── FCM initialisation — handles iOS simulator (no APNS) gracefully ─────────
+  Future<void> _initFCM() async {
     try {
-      FirebaseMessaging messaging = FirebaseMessaging.instance;
+      final messaging = FirebaseMessaging.instance;
       await messaging.requestPermission();
 
-      // iOS simulator doesn't support APNS so we skip token fetch
+      // iOS simulator has no APNS token — skip to avoid crash
       if (defaultTargetPlatform == TargetPlatform.iOS) {
         final apnsToken = await messaging.getAPNSToken();
-        if (apnsToken == null) return; // simulator — skip
+        if (apnsToken == null) return; // running on simulator — bail early
       }
 
-      String? token = await messaging.getToken();
+      final token = await messaging.getToken();
       if (token != null && UserSession.isLoggedIn()) {
         await Api.saveFCMToken(UserSession.userId!, token);
       }
     } catch (e) {
-      // silently ignore FCM errors on simulator
+      // Silently swallow FCM errors (e.g. simulator, no network)
       debugPrint('FCM init skipped: $e');
     }
   }
 
-  void setupForegroundListener() {
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {});
+  // ─── Foreground message listener (extend as needed) ──────────────────────────
+  void _setupForegroundListener() {
+    FirebaseMessaging.onMessage.listen((_) {});
   }
 
-  void setupNotificationClick() {
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      setState(() {
-        currentIndex = 2;
-      });
+  // ─── Notification tap → navigate to Bookings tab ─────────────────────────────
+  void _setupNotificationClick() {
+    FirebaseMessaging.onMessageOpenedApp.listen((_) {
+      setState(() => currentIndex = 2);
     });
   }
+
+  // ─── Internal shortcut used by HomePage's profile avatar ─────────────────────
+  void _goToProfile() => setState(() => currentIndex = 4);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      // extendBody allows page content to render behind the floating bottom bar
       extendBody: true,
       body: IndexedStack(
         index: currentIndex,
-        children: [  // ✅ Removed 'const' keyword
-          HomePage(),
-          const About(),  // Keep const if About widget has const constructor
-          Booking(),
-          Contact(),
-          ProfilePage(),  // ✅ Changed from Profile() to ProfilePage()
+        children: [
+          HomePage(onProfileTap: _goToProfile),
+          const About(),
+          const Booking(),
+          const Contact(),
+          const ProfilePage(),
         ],
       ),
+      // BottomBar manages its own sizing — do NOT wrap in a Stack here
       bottomNavigationBar: BottomBar(
         currentIndex: currentIndex,
-        onTap: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
+        onTap: (index) => setState(() => currentIndex = index),
       ),
     );
   }
