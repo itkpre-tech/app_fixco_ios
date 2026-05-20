@@ -68,7 +68,7 @@ workflows:
       - name: Flutter build IPA
         script: |
           flutter build ipa --release \
-            --build-number=11 \
+            --build-number=12 \
             --export-options-plist=/tmp/ExportOptions.plist
 
     artifacts:
